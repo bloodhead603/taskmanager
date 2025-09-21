@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DepEd Teacher's Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -632,8 +631,7 @@
                 </div>
 
                 <div id="user-area" style="display:flex;gap:12px;align-items:center;">
-                    <div id="user-greet" style="color:white;font-weight:700;"></div>
-                    <button id="logoutBtn" class="btn btn-secondary">Log out</button>
+                    <div id="user-greet" style="color:white;font-weight:700;">Hi, Teacher</div>
                 </div>
             </div>
         </div>
@@ -950,18 +948,17 @@
     </footer>
 
     <script>
-        // Initialize Supabase client
-        const SUPABASE_URL = 'https://mksawfwvcvmhekwpmlaw.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1rc2F3Znd2Y3ZtaGVrd3BtbGF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzNDYwOTIsImV4cCI6MjA3MzkyMjA5Mn0.xkiwSXeOyhW5-EtiQNUvbLRefwECPudcDJy8ZcxvQqs';
-        
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
+        // Data storage keys
+        const STORAGE_KEYS = {
+            CLASSES: 'deped_classes',
+            STUDENTS: 'deped_students',
+            TASKS: 'deped_tasks'
+        };
+
         // DOM Elements
         const elements = {
             notification: document.getElementById('notification'),
             currentDate: document.getElementById('current-date'),
-            userGreet: document.getElementById('user-greet'),
-            logoutBtn: document.getElementById('logout-btn'),
             navTabs: document.querySelectorAll('.nav-tab'),
             tabContents: document.querySelectorAll('.tab-content'),
             classesTableBody: document.getElementById('classes-table-body'),
@@ -987,25 +984,46 @@
             modalCloseButtons: document.querySelectorAll('.modal-close'),
             totalClasses: document.getElementById('total-classes'),
             totalStudents: document.getElementById('total-students'),
-            pendingAssignments: document.getElementById('pending-assignments')
+            pendingAssignments: document.getElementById('pending-assignments'),
+            taskForm: document.getElementById('task-form'),
+            tasksContainer: document.getElementById('tasks-container'),
+            taskSubject: document.getElementById('task-subject'),
+            customSubjectContainer: document.getElementById('custom-subject-container'),
+            customSubject: document.getElementById('custom-subject'),
+            addCustomSubject: document.getElementById('add-custom-subject')
         };
 
         // State
-        let currentUser = null;
         let classes = [];
         let students = [];
+        let tasks = [];
         let editingClassId = null;
         let editingStudentId = null;
 
         // Initialize the application
-        async function init() {
-            await validateSession();
+        function init() {
+            loadFromLocalStorage();
             displayCurrentDate();
             setupEventListeners();
-            loadClasses();
-            loadStudents();
+            renderClasses();
+            renderStudents();
+            renderTasks();
             updateStats();
             showNotification('Welcome to your DepEd Dashboard!', 'success');
+        }
+
+        // Load data from local storage
+        function loadFromLocalStorage() {
+            classes = JSON.parse(localStorage.getItem(STORAGE_KEYS.CLASSES)) || [];
+            students = JSON.parse(localStorage.getItem(STORAGE_KEYS.STUDENTS)) || [];
+            tasks = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS)) || [];
+        }
+
+        // Save data to local storage
+        function saveToLocalStorage() {
+            localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
+            localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+            localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks));
         }
 
         // Display current date
@@ -1048,11 +1066,186 @@
             // Student form submission
             elements.studentForm.addEventListener('submit', handleStudentSubmit);
 
+            // Task form submission
+            elements.taskForm.addEventListener('submit', handleTaskSubmit);
+
             // Class filter change
             elements.classFilter.addEventListener('change', filterStudentsByClass);
 
-            // Logout button
-            document.getElementById('logoutBtn').addEventListener('click', logout);
+            // Task subject change
+            elements.taskSubject.addEventListener('change', handleTaskSubjectChange);
+
+            // Add custom subject button
+            elements.addCustomSubject.addEventListener('click', addCustomSubject);
+
+            // Close modals when clicking outside
+            window.addEventListener('click', (e) => {
+                if (e.target === elements.classModal) {
+                    closeModals();
+                }
+                if (e.target === elements.studentModal) {
+                    closeModals();
+                }
+            });
+        }
+
+        // Handle task subject change
+        function handleTaskSubjectChange() {
+            if (elements.taskSubject.value === 'other') {
+                elements.customSubjectContainer.style.display = 'block';
+            } else {
+                elements.customSubjectContainer.style.display = 'none';
+            }
+        }
+
+        // Add custom subject
+        function addCustomSubject() {
+            const customSubject = elements.customSubject.value.trim();
+            if (customSubject) {
+                // Add the custom subject as an option
+                const option = document.createElement('option');
+                option.value = customSubject;
+                option.textContent = customSubject;
+                elements.taskSubject.appendChild(option);
+                
+                // Select the new option
+                elements.taskSubject.value = customSubject;
+                elements.customSubjectContainer.style.display = 'none';
+                elements.customSubject.value = '';
+            }
+        }
+
+        // Handle task form submission
+        function handleTaskSubmit(e) {
+            e.preventDefault();
+            
+            const title = document.getElementById('task-title').value;
+            let subject = elements.taskSubject.value;
+            const description = document.getElementById('task-description').value;
+            const time = document.getElementById('task-time').value;
+            const dueDate = document.getElementById('task-due-date').value;
+            const priority = document.getElementById('task-priority').value;
+            
+            // If subject is 'other', use the custom subject
+            if (subject === 'other') {
+                subject = elements.customSubject.value.trim();
+                if (!subject) {
+                    showNotification('Please enter a subject', 'error');
+                    return;
+                }
+            }
+            
+            const task = {
+                id: Date.now().toString(),
+                title,
+                subject,
+                description,
+                time,
+                dueDate,
+                priority,
+                completed: false,
+                createdAt: new Date().toISOString()
+            };
+            
+            tasks.push(task);
+            saveToLocalStorage();
+            renderTasks();
+            elements.taskForm.reset();
+            elements.customSubjectContainer.style.display = 'none';
+            
+            showNotification('Task added successfully', 'success');
+        }
+
+        // Render tasks
+        function renderTasks() {
+            elements.tasksContainer.innerHTML = '';
+            
+            if (tasks.length === 0) {
+                elements.tasksContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-clipboard-list"></i>
+                        <h3>No tasks yet</h3>
+                        <p>Add a new task to get started</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Filter tasks for today
+            const today = new Date().toDateString();
+            const todayTasks = tasks.filter(task => {
+                const taskDate = new Date(task.dueDate).toDateString();
+                return taskDate === today;
+            });
+            
+            if (todayTasks.length === 0) {
+                elements.tasksContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-calendar-check"></i>
+                        <h3>No tasks for today</h3>
+                        <p>You're all caught up!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            todayTasks.forEach(task => {
+                const taskElement = document.createElement('div');
+                taskElement.className = `task-item priority-${task.priority} ${task.completed ? 'completed' : ''}`;
+                
+                const priorityBadgeClass = `priority-badge priority-${task.priority}-badge`;
+                const priorityText = task.priority.charAt(0).toUpperCase() + task.priority.slice(1);
+                
+                taskElement.innerHTML = `
+                    <div class="task-info">
+                        <h3>
+                            ${task.title}
+                            <span class="${priorityBadgeClass}">${priorityText}</span>
+                        </h3>
+                        <p>${task.subject} • ${task.description || 'No description'}</p>
+                        <div class="task-meta">
+                            <span><i class="fas fa-clock"></i> ${task.time || 'No time set'}</span>
+                            <span><i class="fas fa-calendar"></i> ${formatDate(task.dueDate)}</span>
+                        </div>
+                    </div>
+                    <div class="task-actions">
+                        <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} data-id="${task.id}">
+                    </div>
+                `;
+                
+                elements.tasksContainer.appendChild(taskElement);
+            });
+            
+            // Add event listeners to checkboxes
+            document.querySelectorAll('.task-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    const taskId = e.target.getAttribute('data-id');
+                    toggleTaskCompletion(taskId);
+                });
+            });
+        }
+
+        // Toggle task completion
+        function toggleTaskCompletion(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                task.completed = !task.completed;
+                saveToLocalStorage();
+                renderTasks();
+                updateStats();
+            }
+        }
+
+        // Format date for display
+        function formatDate(dateString) {
+            if (!dateString) return 'No date set';
+            
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-PH', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
         }
 
         // Switch between tabs
@@ -1077,31 +1270,21 @@
 
             // Load data for the tab if needed
             if (tabId === 'classes') {
-                loadClasses();
+                renderClasses();
             } else if (tabId === 'students') {
-                loadStudents();
+                renderStudents();
+            } else if (tabId === 'dashboard') {
+                renderTasks();
+                updateStats();
             }
         }
 
-        // Load classes from Supabase
-        async function loadClasses() {
-            try {
-                const { data, error } = await supabase
-                    .from('classes')
-                    .select('*')
-                    .eq('teacher_id', currentUser.id)
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
-
-                classes = data || [];
-                renderClasses();
-                populateClassFilters();
-                updateStats();
-            } catch (error) {
-                console.error('Error loading classes:', error);
-                showNotification('Failed to load classes', 'error');
-            }
+        // Load classes from local storage
+        function loadClasses() {
+            classes = JSON.parse(localStorage.getItem(STORAGE_KEYS.CLASSES)) || [];
+            renderClasses();
+            populateClassFilters();
+            updateStats();
         }
 
         // Render classes in the table
@@ -1125,12 +1308,15 @@
             }
 
             classes.forEach(cls => {
+                // Count students in this class
+                const studentCount = students.filter(s => s.class_id === cls.id).length;
+                
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${cls.name}</td>
                     <td>${cls.subject}</td>
                     <td>${cls.academic_year}</td>
-                    <td>${cls.student_count || 0}</td>
+                    <td>${studentCount}</td>
                     <td>
                         <button class="action-btn btn-view" data-id="${cls.id}">View</button>
                         <button class="action-btn btn-edit" data-id="${cls.id}">Edit</button>
@@ -1156,26 +1342,11 @@
             });
         }
 
-        // Load students from Supabase
-        async function loadStudents() {
-            try {
-                const { data, error } = await supabase
-                    .from('students')
-                    .select(`
-                        *,
-                        classes (name)
-                    `)
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
-
-                students = data || [];
-                renderStudents();
-                updateStats();
-            } catch (error) {
-                console.error('Error loading students:', error);
-                showNotification('Failed to load students', 'error');
-            }
+        // Load students from local storage
+        function loadStudents() {
+            students = JSON.parse(localStorage.getItem(STORAGE_KEYS.STUDENTS)) || [];
+            renderStudents();
+            updateStats();
         }
 
         // Render students in the table
@@ -1199,13 +1370,16 @@
             }
 
             students.forEach(student => {
+                const classObj = classes.find(c => c.id === student.class_id);
+                const className = classObj ? classObj.name : 'Unassigned';
+                
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${student.id.substring(0, 8)}</td>
                     <td>${student.first_name}</td>
                     <td>${student.last_name}</td>
                     <td>${student.email || '-'}</td>
-                    <td>${student.classes?.name || 'Unassigned'}</td>
+                    <td>${className}</td>
                     <td>${new Date(student.enrollment_date).toLocaleDateString()}</td>
                     <td>
                         <button class="action-btn btn-view" data-id="${student.id}">View</button>
@@ -1258,13 +1432,16 @@
             
             elements.studentsTableBody.innerHTML = '';
             filteredStudents.forEach(student => {
+                const classObj = classes.find(c => c.id === student.class_id);
+                const className = classObj ? classObj.name : 'Unassigned';
+                
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${student.id.substring(0, 8)}</td>
                     <td>${student.first_name}</td>
                     <td>${student.last_name}</td>
                     <td>${student.email || '-'}</td>
-                    <td>${student.classes?.name || 'Unassigned'}</td>
+                    <td>${className}</td>
                     <td>${new Date(student.enrollment_date).toLocaleDateString()}</td>
                     <td>
                         <button class="action-btn btn-view" data-id="${student.id}">View</button>
@@ -1332,48 +1509,37 @@
         }
 
         // Handle class form submission
-        async function handleClassSubmit(e) {
+        function handleClassSubmit(e) {
             e.preventDefault();
             
             const classData = {
                 name: elements.className.value,
                 subject: elements.classSubject.value,
-                academic_year: elements.classAcademicYear.value,
-                teacher_id: currentUser.id
+                academic_year: elements.classAcademicYear.value
             };
             
-            try {
-                if (editingClassId) {
-                    // Update existing class
-                    const { error } = await supabase
-                        .from('classes')
-                        .update(classData)
-                        .eq('id', editingClassId);
-                    
-                    if (error) throw error;
-                    
-                    showNotification('Class updated successfully', 'success');
-                } else {
-                    // Create new class
-                    const { error } = await supabase
-                        .from('classes')
-                        .insert([classData]);
-                    
-                    if (error) throw error;
-                    
-                    showNotification('Class created successfully', 'success');
+            if (editingClassId) {
+                // Update existing class
+                const index = classes.findIndex(c => c.id === editingClassId);
+                if (index !== -1) {
+                    classes[index] = { ...classes[index], ...classData };
                 }
-                
-                closeModals();
-                loadClasses();
-            } catch (error) {
-                console.error('Error saving class:', error);
-                showNotification('Failed to save class', 'error');
+                showNotification('Class updated successfully', 'success');
+            } else {
+                // Create new class
+                classData.id = Date.now().toString();
+                classData.created_at = new Date().toISOString();
+                classes.push(classData);
+                showNotification('Class created successfully', 'success');
             }
+            
+            saveToLocalStorage();
+            closeModals();
+            loadClasses();
         }
 
         // Handle student form submission
-        async function handleStudentSubmit(e) {
+        function handleStudentSubmit(e) {
             e.preventDefault();
             
             const studentData = {
@@ -1383,92 +1549,55 @@
                 class_id: elements.studentClass.value
             };
             
-            try {
-                if (editingStudentId) {
-                    // Update existing student
-                    const { error } = await supabase
-                        .from('students')
-                        .update(studentData)
-                        .eq('id', editingStudentId);
-                    
-                    if (error) throw error;
-                    
-                    showNotification('Student updated successfully', 'success');
-                } else {
-                    // Create new student
-                    const { error } = await supabase
-                        .from('students')
-                        .insert([studentData]);
-                    
-                    if (error) throw error;
-                    
-                    showNotification('Student created successfully', 'success');
+            if (editingStudentId) {
+                // Update existing student
+                const index = students.findIndex(s => s.id === editingStudentId);
+                if (index !== -1) {
+                    students[index] = { ...students[index], ...studentData };
                 }
-                
-                closeModals();
-                loadStudents();
-            } catch (error) {
-                console.error('Error saving student:', error);
-                showNotification('Failed to save student', 'error');
+                showNotification('Student updated successfully', 'success');
+            } else {
+                // Create new student
+                studentData.id = Date.now().toString();
+                studentData.enrollment_date = new Date().toISOString();
+                students.push(studentData);
+                showNotification('Student created successfully', 'success');
             }
+            
+            saveToLocalStorage();
+            closeModals();
+            loadStudents();
         }
 
         // Delete a class
-        async function deleteClass(classId) {
+        function deleteClass(classId) {
             if (!confirm('Are you sure you want to delete this class? This action cannot be undone.')) {
                 return;
             }
             
-            try {
-                // First check if the class has any students
-                const { data: students, error: studentsError } = await supabase
-                    .from('students')
-                    .select('id')
-                    .eq('class_id', classId);
-                
-                if (studentsError) throw studentsError;
-                
-                if (students && students.length > 0) {
-                    showNotification('Cannot delete class with students. Please reassign or delete the students first.', 'error');
-                    return;
-                }
-                
-                // Delete the class
-                const { error } = await supabase
-                    .from('classes')
-                    .delete()
-                    .eq('id', classId);
-                
-                if (error) throw error;
-                
-                showNotification('Class deleted successfully', 'success');
-                loadClasses();
-            } catch (error) {
-                console.error('Error deleting class:', error);
-                showNotification('Failed to delete class', 'error');
+            // Check if any student is in this class
+            const studentsInClass = students.filter(s => s.class_id === classId);
+            if (studentsInClass.length > 0) {
+                showNotification('Cannot delete class with students. Please reassign or delete the students first.', 'error');
+                return;
             }
+            
+            classes = classes.filter(c => c.id !== classId);
+            saveToLocalStorage();
+            showNotification('Class deleted successfully', 'success');
+            loadClasses();
         }
 
         // Delete a student
-        async function deleteStudent(studentId) {
+        function deleteStudent(studentId) {
             if (!confirm('Are you sure you want to delete this student? This action cannot be undone.')) {
                 return;
             }
             
-            try {
-                const { error } = await supabase
-                    .from('students')
-                    .delete()
-                    .eq('id', studentId);
-                
-                if (error) throw error;
-                
-                showNotification('Student deleted successfully', 'success');
-                loadStudents();
-            } catch (error) {
-                console.error('Error deleting student:', error);
-                showNotification('Failed to delete student', 'error');
-            }
+            students = students.filter(s => s.id !== studentId);
+            saveToLocalStorage();
+            showNotification('Student deleted successfully', 'success');
+            loadStudents();
         }
 
         // Update statistics
@@ -1476,8 +1605,9 @@
             elements.totalClasses.textContent = classes.length;
             elements.totalStudents.textContent = students.length;
             
-            // For demonstration - in a real app, you would calculate pending assignments
-            elements.pendingAssignments.textContent = Math.floor(Math.random() * 10);
+            // Count pending tasks
+            const pendingTasks = tasks.filter(task => !task.completed).length;
+            elements.pendingAssignments.textContent = pendingTasks;
         }
 
         // Show notification
@@ -1489,39 +1619,6 @@
             setTimeout(() => {
                 elements.notification.classList.remove('show');
             }, 3000);
-        }
-
-        // Validate session and get user info
-        async function validateSession() {
-            const { data: { session }, error } = await supabase.auth.getSession();
-            
-            if (error || !session) {
-                window.location.href = 'index.html';
-                return false;
-            }
-            
-            currentUser = session.user;
-            elements.userGreet.textContent = `Hi, ${currentUser.email}`;
-            
-            // Get user profile from our users table
-            const { data: userProfile, error: profileError } = await supabase
-                .from('users')
-                .select('*')
-                .eq('id', currentUser.id)
-                .single();
-            
-            if (!profileError && userProfile) {
-                const name = `${userProfile.first_name} ${userProfile.last_name}`;
-                elements.userGreet.textContent = `Hi, ${name}`;
-            }
-            
-            return true;
-        }
-
-        // Logout function
-        async function logout() {
-            await supabase.auth.signOut();
-            window.location.href = 'index.html';
         }
 
         // Initialize the application
