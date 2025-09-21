@@ -515,10 +515,117 @@
       color: var(--primary);
       margin-top: 10px;
     }
+
+    /* Data management styles */
+    .data-management {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid var(--medium-gray);
+    }
+
+    .data-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .btn-info {
+      background: linear-gradient(to right, var(--accent), var(--accent-light));
+    }
+
+    .btn-info:hover {
+      background: linear-gradient(to right, var(--accent-dark), var(--accent));
+    }
+
+    .storage-status {
+      font-size: 0.8rem;
+      text-align: center;
+      margin-top: 10px;
+      color: var(--text-light);
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-content {
+      background-color: white;
+      margin: 15% auto;
+      padding: 25px;
+      border-radius: 12px;
+      width: 80%;
+      max-width: 500px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .modal-title {
+      font-size: 1.3rem;
+      color: var(--primary);
+    }
+
+    .close {
+      color: #aaa;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .close:hover {
+      color: var(--text);
+    }
+
+    .modal-body {
+      margin-bottom: 20px;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
   </style>
 </head>
 <body>
   <div id="notification" class="notification"></div>
+
+  <!-- Data Backup Modal -->
+  <div id="backup-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Backup/Restore Data</h3>
+        <span class="close">&times;</span>
+      </div>
+      <div class="modal-body">
+        <p>Back up your tasks to a file or restore from a previous backup.</p>
+        <div class="data-buttons">
+          <button id="export-btn" class="btn btn-info">
+            <i class="fas fa-download"></i> Export Data to File
+          </button>
+          <button id="import-btn" class="btn btn-info">
+            <i class="fas fa-upload"></i> Import Data from File
+          </button>
+          <input type="file" id="import-file" accept=".json" style="display: none;">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary close-modal">Close</button>
+      </div>
+    </div>
+  </div>
 
   <header>
     <div class="container">
@@ -611,6 +718,22 @@
             <div class="stat-number" id="pending-tasks">0</div>
             <div class="stat-label">Pending Tasks</div>
           </div>
+          
+          <div class="data-management">
+            <h3 class="card-title"><i class="fas fa-database"></i> Data Management</h3>
+            <div class="data-buttons">
+              <button id="backup-btn" class="btn btn-info">
+                <i class="fas fa-database"></i> Backup/Restore Data
+              </button>
+              <button id="clear-data-btn" class="btn btn-danger">
+                <i class="fas fa-trash"></i> Clear All Data
+              </button>
+            </div>
+            <div class="storage-status" id="storage-status">
+              Storage: <span id="storage-size">0 KB</span> used
+            </div>
+          </div>
+          
           <button class="btn print-btn no-print" onclick="TaskManager.printTasks()">
             <i class="fas fa-print"></i> Print Tasks
           </button>
@@ -705,7 +828,16 @@
         pendingTasks: document.getElementById('pending-tasks'),
         notification: document.getElementById('notification'),
         printDate: document.getElementById('print-date'),
-        printTasksContainer: document.getElementById('print-tasks-container')
+        printTasksContainer: document.getElementById('print-tasks-container'),
+        backupBtn: document.getElementById('backup-btn'),
+        clearDataBtn: document.getElementById('clear-data-btn'),
+        storageStatus: document.getElementById('storage-status'),
+        storageSize: document.getElementById('storage-size'),
+        exportBtn: document.getElementById('export-btn'),
+        importBtn: document.getElementById('import-btn'),
+        importFile: document.getElementById('import-file'),
+        backupModal: document.getElementById('backup-modal'),
+        closeModalButtons: document.querySelectorAll('.close, .close-modal')
       };
 
       // State
@@ -718,6 +850,7 @@
         loadTasksFromStorage();
         loadCustomSubjects();
         setupEventListeners();
+        updateStorageStatus();
         showNotification('Welcome to your DepEd Task Organizer!', 'success');
       }
 
@@ -738,6 +871,23 @@
         elements.filterStatus.addEventListener('change', renderTasks);
         elements.taskSubject.addEventListener('change', handleSubjectChange);
         elements.addCustomSubject.addEventListener('click', addCustomSubject);
+        elements.backupBtn.addEventListener('click', openBackupModal);
+        elements.clearDataBtn.addEventListener('click', confirmClearData);
+        elements.exportBtn.addEventListener('click', exportData);
+        elements.importBtn.addEventListener('click', () => elements.importFile.click());
+        elements.importFile.addEventListener('change', importData);
+        
+        // Close modal events
+        elements.closeModalButtons.forEach(button => {
+          button.addEventListener('click', closeBackupModal);
+        });
+        
+        // Close modal when clicking outside
+        elements.backupModal.addEventListener('click', (e) => {
+          if (e.target === elements.backupModal) {
+            closeBackupModal();
+          }
+        });
                 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
@@ -828,6 +978,7 @@
         renderTasks();
         updateStats();
         saveTasksToStorage();
+        updateStorageStatus();
       }
 
       // Toggle task completion status
@@ -838,6 +989,7 @@
         renderTasks();
         updateStats();
         saveTasksToStorage();
+        updateStorageStatus();
         
         const task = tasks.find(t => t.id === id);
         const status = task.completed ? 'completed' : 'marked as pending';
@@ -851,6 +1003,7 @@
           renderTasks();
           updateStats();
           saveTasksToStorage();
+          updateStorageStatus();
           showNotification('Task deleted successfully', 'success');
         }
       }
@@ -1084,9 +1237,15 @@
 
       // Load tasks from localStorage
       function loadTasksFromStorage() {
-        const storedTasks = localStorage.getItem('depedTasks');
-        if (storedTasks) {
-          tasks = JSON.parse(storedTasks);
+        try {
+          const storedTasks = localStorage.getItem('depedTasks');
+          if (storedTasks) {
+            tasks = JSON.parse(storedTasks);
+          }
+        } catch (error) {
+          console.error('Error loading tasks from storage:', error);
+          showNotification('Error loading tasks. Data might be corrupted.', 'error');
+          tasks = [];
         }
         renderTasks();
         updateStats();
@@ -1094,14 +1253,24 @@
 
       // Save tasks to localStorage
       function saveTasksToStorage() {
-        localStorage.setItem('depedTasks', JSON.stringify(tasks));
+        try {
+          localStorage.setItem('depedTasks', JSON.stringify(tasks));
+        } catch (error) {
+          console.error('Error saving tasks to storage:', error);
+          showNotification('Error saving tasks. Storage might be full.', 'error');
+        }
       }
 
       // Load custom subjects from localStorage
       function loadCustomSubjects() {
-        const storedSubjects = localStorage.getItem('depedCustomSubjects');
-        if (storedSubjects) {
-          customSubjects = JSON.parse(storedSubjects);
+        try {
+          const storedSubjects = localStorage.getItem('depedCustomSubjects');
+          if (storedSubjects) {
+            customSubjects = JSON.parse(storedSubjects);
+          }
+        } catch (error) {
+          console.error('Error loading custom subjects from storage:', error);
+          customSubjects = [];
         }
 
         // Add custom subjects to dropdown
@@ -1115,7 +1284,156 @@
 
       // Save custom subjects to localStorage
       function saveCustomSubjects() {
-        localStorage.setItem('depedCustomSubjects', JSON.stringify(customSubjects));
+        try {
+          localStorage.setItem('depedCustomSubjects', JSON.stringify(customSubjects));
+        } catch (error) {
+          console.error('Error saving custom subjects to storage:', error);
+          showNotification('Error saving custom subjects.', 'error');
+        }
+      }
+
+      // Update storage status display
+      function updateStorageStatus() {
+        try {
+          let totalSize = 0;
+          
+          // Calculate tasks size
+          const tasksData = localStorage.getItem('depedTasks');
+          if (tasksData) {
+            totalSize += new Blob([tasksData]).size;
+          }
+          
+          // Calculate custom subjects size
+          const subjectsData = localStorage.getItem('depedCustomSubjects');
+          if (subjectsData) {
+            totalSize += new Blob([subjectsData]).size;
+          }
+          
+          // Convert to KB
+          const sizeInKB = (totalSize / 1024).toFixed(2);
+          elements.storageSize.textContent = sizeInKB;
+        } catch (error) {
+          console.error('Error calculating storage size:', error);
+        }
+      }
+
+      // Open backup modal
+      function openBackupModal() {
+        elements.backupModal.style.display = 'block';
+      }
+
+      // Close backup modal
+      function closeBackupModal() {
+        elements.backupModal.style.display = 'none';
+      }
+
+      // Confirm clear data
+      function confirmClearData() {
+        if (confirm('Are you sure you want to clear all data? This action cannot be undone.')) {
+          clearAllData();
+        }
+      }
+
+      // Clear all data
+      function clearAllData() {
+        try {
+          localStorage.removeItem('depedTasks');
+          localStorage.removeItem('depedCustomSubjects');
+          tasks = [];
+          customSubjects = [];
+          
+          // Reset dropdown
+          elements.taskSubject.innerHTML = `
+            <option value="">Select Subject/Activity</option>
+            <option value="English">English</option>
+            <option value="Math">Mathematics</option>
+            <option value="Science">Science</option>
+            <option value="Filipino">Filipino</option>
+            <option value="Araling Panlipunan">Araling Panlipunan</option>
+            <option value="MAPEH">MAPEH</option>
+            <option value="TLE">EPP</option>
+            <option value="ESP">GMRC</option>
+            <option value="other">Other (specify)</option>
+          `;
+          
+          renderTasks();
+          updateStats();
+          updateStorageStatus();
+          showNotification('All data has been cleared.', 'success');
+        } catch (error) {
+          console.error('Error clearing data:', error);
+          showNotification('Error clearing data.', 'error');
+        }
+      }
+
+      // Export data to file
+      function exportData() {
+        try {
+          const data = {
+            tasks: tasks,
+            customSubjects: customSubjects,
+            exportedAt: new Date().toISOString()
+          };
+          
+          const dataStr = JSON.stringify(data, null, 2);
+          const dataBlob = new Blob([dataStr], { type: 'application/json' });
+          
+          const url = URL.createObjectURL(dataBlob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `deped-tasks-backup-${new Date().toISOString().slice(0, 10)}.json`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          
+          showNotification('Data exported successfully!', 'success');
+          closeBackupModal();
+        } catch (error) {
+          console.error('Error exporting data:', error);
+          showNotification('Error exporting data.', 'error');
+        }
+      }
+
+      // Import data from file
+      function importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            const data = JSON.parse(e.target.result);
+            
+            // Validate imported data
+            if (!data.tasks || !Array.isArray(data.tasks)) {
+              throw new Error('Invalid data format');
+            }
+            
+            // Clear current data
+            tasks = data.tasks;
+            customSubjects = data.customSubjects || [];
+            
+            // Save to storage
+            saveTasksToStorage();
+            saveCustomSubjects();
+            
+            // Update UI
+            loadCustomSubjects();
+            renderTasks();
+            updateStats();
+            updateStorageStatus();
+            
+            showNotification('Data imported successfully!', 'success');
+            closeBackupModal();
+          } catch (error) {
+            console.error('Error importing data:', error);
+            showNotification('Error importing data. File might be corrupted.', 'error');
+          }
+        };
+        reader.readAsText(file);
+        // Reset file input
+        elements.importFile.value = '';
       }
 
       // Public methods
