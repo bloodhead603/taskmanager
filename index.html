@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DepEd Teacher's Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2E7D32;
+            --primary-light: #4CAF50;
+            --primary-dark: #1B5E20;
+            --secondary: #FFA000;
+            --secondary-light: #FFC107;
+            --secondary-dark: #FF6F00;
+            --accent: #1565C0;
+            --accent-light: #2196F3;
+            --accent-dark: #0D47A1;
+            --light-gray: #F5F5F5;
+            --medium-gray: #E0E0E0;
+            --dark-gray: #424242;
+            --text: #212121;
+            --text-light: #757575;
+            --success: #388E3C;
+            --warning: #F57C00;
+            --error: #D32F2F;
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --hover-shadow: 0 10px 15px rgba(0, 0, 0, 0.15);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f9f9f9 0%, #e0f2e0 100%);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 15px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .logo-icon {
+            font-size: 2rem;
+            color: white;
+        }
+        
+        .logo h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        
+        .date-display {
+            background-color: white;
+            color: var(--primary);
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-weight: bold;
+            box-shadow: var(--card-shadow);
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 3fr;
+            gap: 25px;
+            margin-top: 25px;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
+        }
+        
+        .card {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            padding: 25px;
+            margin-bottom: 25px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--hover-shadow);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--medium-gray);
+        }
+        
+        .card-title {
+            font-size: 1.3rem;
+            color: var(--primary);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card-title i {
+            font-size: 1.1rem;
+        }
+        
+        .btn {
+            background: linear-gradient(to right, var(--primary), var(--primary-light));
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            background: linear-gradient(to right, var(--primary-dark), var(--primary));
+            transform: translateY(-2px);
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(to right, #6c757d, #8a939b);
+        }
+        
+        .btn-secondary:hover {
+            background: linear-gradient(to right, #5a6268, #6c757d);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(to right, var(--error), #F44336);
+        }
+        
+        .btn-danger:hover {
+            background: linear-gradient(to right, #C62828, var(--error));
+        }
+        
+        .form-group {
+            margin-bottom: 18px;
+            position: relative;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark-gray);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--medium-gray);
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.2);
+        }
+        
+        .priority-high {
+            border-left: 5px solid var(--error);
+        }
+        
+        .priority-medium {
+            border-left: 5px solid var(--warning);
+        }
+        
+        .priority-low {
+            border-left: 5px solid var(--success);
+        }
+        
+        .task-item {
+            padding: 15px;
+            margin-bottom: 12px;
+            background-color: var(--light-gray);
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+            cursor: grab;
+        }
+        
+        .task-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .task-info {
+            flex: 1;
+        }
+        
+        .task-info h3 {
+            font-size: 1.05rem;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .task-info p {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            margin-bottom: 5px;
+        }
+        
+        .task-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 0.85rem;
+            color: var(--text-light);
+            margin-top: 8px;
+        }
+        
+        .task-meta span {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .task-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .task-checkbox {
+            width: 22px;
+            height: 22px;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+        
+        .completed {
+            background-color: #f8fff8;
+        }
+        
+        .completed .task-info h3 {
+            text-decoration: line-through;
+            color: var(--success);
+        }
+        
+        .schedule-time {
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .schedule-item {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 12px;
+            border-radius: 6px;
+            background-color: #E8F5E9;
+            transition: background-color 0.3s ease;
+        }
+        
+        .schedule-item:hover {
+            background-color: #C8E6C9;
+        }
+        
+        .stat-box {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #E8F5E9 0%, #ffffff 100%);
+            border-radius: 10px;
+            margin-bottom: 18px;
+            border: 1px solid var(--medium-gray);
+        }
+        
+        .stat-number {
+            font-size: 2.2rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            font-size: 0.95rem;
+            color: var(--text-light);
+            font-weight: 600;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 25px;
+            color: var(--text-light);
+            font-size: 0.9rem;
+            background-color: var(--light-gray);
+            border-top: 1px solid var(--medium-gray);
+        }
+        
+        .print-btn {
+            background: linear-gradient(to right, #555, #777);
+            margin-top: 10px;
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .deped-branding {
+            text-align: center;
+            margin: 15px 0;
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        
+        .filter-options {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .filter-select {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--medium-gray);
+            background-color: white;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-light);
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: var(--medium-gray);
+        }
+        
+        .priority-badge {
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        
+        .priority-high-badge {
+            background-color: #FFEBEE;
+            color: var(--error);
+        }
+        
+        .priority-medium-badge {
+            background-color: #FFF3E0;
+            color: var(--warning);
+        }
+        
+        .priority-low-badge {
+            background-color: #E8F5E9;
+            color: var(--success);
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.success {
+            background: linear-gradient(to right, var(--success), #4CAF50);
+        }
+        
+        .notification.error {
+            background: linear-gradient(to right, var(--error), #F44336);
+        }
+        
+        .custom-subject-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        
+        #custom-subject {
+            flex: 1;
+        }
+        
+        /* Print Styles */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            
+            #print-section, #print-section * {
+                visibility: visible;
+            }
+            
+            #print-section {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+            
+            .task-item {
+                break-inside: avoid;
+            }
+        }
+        
+        .print-header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary);
+        }
+        
+        .print-date {
+            font-size: 1.2rem;
+            color: var(--primary);
+            margin-top: 10px;
+        }
+        
+        /* Navigation Tabs */
+        .nav-tabs {
+            display: flex;
+            border-bottom: 2px solid var(--primary);
+            margin-bottom: 20px;
+        }
+        
+        .nav-tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-light);
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-tab.active {
+            color: var(--primary);
+            border-bottom: 3px solid var(--primary);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Table Styles */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        .data-table th, .data-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+        
+        .data-table th {
+            background-color: var(--light-gray);
+            font-weight: 600;
+            color: var(--primary);
+        }
+        
+        .data-table tr:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .action-btn {
+            padding: 6px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            margin-right: 5px;
+        }
+        
+        .btn-edit {
+            background-color: var(--accent-light);
+            color: white;
+        }
+        
+        .btn-delete {
+            background-color: var(--error);
+            color: white;
+        }
+        
+        .btn-view {
+            background-color: var(--primary-light);
+            color: white;
+        }
+        
+        /* Form Styles for Supabase Tables */
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .form-col {
+            flex: 1;
+        }
+        
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background-color: white;
+            padding: 25px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-light);
+        }
+    </style>
+</head>
+<body>
+    <div id="notification" class="notification"></div>
+
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-chalkboard-teacher logo-icon"></i>
+                    <h1>DepEd Teacher's Dashboard</h1>
+                </div>
+                <div class="date-display">
+                    <span id="current-date"></span>
+                </div>
+
+                <div id="user-area" style="display:flex;gap:12px;align-items:center;">
+                    <div id="user-greet" style="color:white;font-weight:700;"></div>
+                    <button id="logoutBtn" class="btn btn-secondary">Log out</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="deped-branding">
+            <i class="fas fa-landmark"></i> Department of Education - Republic of the Philippines
+        </div>
+        
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+            <div class="nav-tab active" data-tab="dashboard">Dashboard</div>
+            <div class="nav-tab" data-tab="classes">Classes</div>
+            <div class="nav-tab" data-tab="students">Students</div>
+            <div class="nav-tab" data-tab="assignments">Assignments</div>
+            <div class="nav-tab" data-tab="grades">Grades</div>
+            <div class="nav-tab" data-tab="attendance">Attendance</div>
+        </div>
+        
+        <!-- Dashboard Tab -->
+        <div class="tab-content active" id="dashboard-tab">
+            <div class="main-content">
+                <div class="left-column">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title"><i class="fas fa-plus-circle"></i> Add New Task</h2>
+                        </div>
+                        <form id="task-form">
+                            <div class="form-group">
+                                <label for="task-title"><i class="fas fa-heading"></i> Task Title</label>
+                                <input type="text" id="task-title" class="form-control" placeholder="Enter task title" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="task-subject"><i class="fas fa-book"></i> Subject/Activity</label>
+                                <select id="task-subject" class="form-control">
+                                    <option value="">Select Subject/Activity</option>
+                                    <option value="English">English</option>
+                                    <option value="Math">Mathematics</option>
+                                    <option value="Science">Science</option>
+                                    <option value="Filipino">Filipino</option>
+                                    <option value="Araling Panlipunan">Araling Panlipunan</option>
+                                    <option value="MAPEH">MAPEH</option>
+                                    <option value="TLE">TLE</option>
+                                    <option value="ESP">ESP</option>
+                                    <option value="other">Other (specify)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="custom-subject-container" style="display: none;">
+                                <div class="custom-subject-container">
+                                    <input type="text" id="custom-subject" class="form-control" placeholder="Enter custom subject/activity">
+                                    <button type="button" id="add-custom-subject" class="btn btn-sm">Add</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="task-description"><i class="fas fa-align-left"></i> Description</label>
+                                <textarea id="task-description" class="form-control" placeholder="Task details" rows="3"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="task-time"><i class="fas fa-clock"></i> Time</label>
+                                <input type="time" id="task-time" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label for="task-due-date"><i class="fas fa-calendar-day"></i> Due Date</label>
+                                <input type="date" id="task-due-date" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label for="task-priority"><i class="fas fa-exclamation-circle"></i> Priority</label>
+                                <select id="task-priority" class="form-control">
+                                    <option value="low">Low Priority</option>
+                                    <option value="medium">Medium Priority</option>
+                                    <option value="high">High Priority</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn"><i class="fas fa-plus"></i> Add Task</button>
+                        </form>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title"><i class="fas fa-chart-pie"></i> Today's Stats</h2>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-number" id="total-classes">0</div>
+                            <div class="stat-label">Total Classes</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-number" id="total-students">0</div>
+                            <div class="stat-label">Total Students</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-number" id="pending-assignments">0</div>
+                            <div class="stat-label">Pending Assignments</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="middle-column">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title"><i class="fas fa-tasks"></i> Today's Tasks</h2>
+                            <div class="filter-options">
+                                <select id="filter-priority" class="filter-select">
+                                    <option value="all">All Priorities</option>
+                                    <option value="high">High Priority</option>
+                                    <option value="medium">Medium Priority</option>
+                                    <option value="low">Low Priority</option>
+                                </select>
+                                <select id="filter-status" class="filter-select">
+                                    <option value="all">All Status</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="pending">Pending</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="tasks-container">
+                            <!-- Tasks will be added here dynamically -->
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title"><i class="fas fa-calendar-alt"></i> Upcoming Deadlines</h2>
+                        </div>
+                        <div id="deadlines-container">
+                            <!-- Deadlines will be added here dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Classes Tab -->
+        <div class="tab-content" id="classes-tab">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title"><i class="fas fa-users"></i> My Classes</h2>
+                    <button class="btn" id="add-class-btn"><i class="fas fa-plus"></i> Add New Class</button>
+                </div>
+                <div id="classes-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Class Name</th>
+                                <th>Subject</th>
+                                <th>Academic Year</th>
+                                <th>Student Count</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="classes-table-body">
+                            <!-- Classes will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Add/Edit Class Modal -->
+            <div id="class-modal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 id="class-modal-title">Add New Class</h2>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <form id="class-form">
+                        <input type="hidden" id="class-id">
+                        <div class="form-row">
+                            <div class="form-col">
+                                <div class="form-group">
+                                    <label for="class-name">Class Name</label>
+                                    <input type="text" id="class-name" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="form-col">
+                                <div class="form-group">
+                                    <label for="class-subject">Subject</label>
+                                    <input type="text" id="class-subject" class="form-control" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col">
+                                <div class="form-group">
+                                    <label for="class-academic-year">Academic Year</label>
+                                    <input type="text" id="class-academic-year" class="form-control" required>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn">Save Class</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Students Tab -->
+        <div class="tab-content" id="students-tab">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title"><i class="fas fa-user-graduate"></i> Student Management</h2>
+                    <div>
+                        <select id="class-filter" class="filter-select">
+                            <option value="">All Classes</option>
+                            <!-- Class options will be populated here -->
+                        </select>
+                        <button class="btn" id="add-student-btn"><i class="fas fa-plus"></i> Add Student</button>
+                    </div>
+                </div>
+                <div id="students-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Student ID</th>
+                                <th>First Name</th>
+                                <th>Last Name</th>
+                                <th>Email</th>
+                                <th>Class</th>
+                                <th>Enrollment Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="students-table-body">
+                            <!-- Students will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Add/Edit Student Modal -->
+            <div id="student-modal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 id="student-modal-title">Add New Student</h2>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <form id="student-form">
+                        <input type="hidden" id="student-id">
+                        <div class="form-row">
+                            <div class="form-col">
+                                <div class="form-group">
+                                    <label for="student-first-name">First Name</label>
+                                    <input type="text" id="student-first-name" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="form-col">
+                                <div class="form-group">
+                                    <label for="student-last-name">Last Name</label>
+                                    <input type="text" id="student-last-name" class="form-control" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col">
+                                <div class="form-group">
+                                    <label for="student-email">Email (optional)</label>
+                                    <input type="email" id="student-email" class="form-control">
+                                </div>
+                            </div>
+                            <div class="form-col">
+                                <div class="form-group">
+                                    <label for="student-class">Class</label>
+                                    <select id="student-class" class="form-control" required>
+                                        <!-- Class options will be populated here -->
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn">Save Student</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Other tabs (Assignments, Grades, Attendance) would be implemented similarly -->
+        <div class="tab-content" id="assignments-tab">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title"><i class="fas fa-tasks"></i> Assignment Management</h2>
+                    <button class="btn" id="add-assignment-btn"><i class="fas fa-plus"></i> Add Assignment</button>
+                </div>
+                <div id="assignments-container">
+                    <p>Assignment management interface would be implemented here.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="grades-tab">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title"><i class="fas fa-chart-line"></i> Grade Management</h2>
+                </div>
+                <div id="grades-container">
+                    <p>Grade management interface would be implemented here.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="attendance-tab">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title"><i class="fas fa-calendar-check"></i> Attendance Management</h2>
+                </div>
+                <div id="attendance-container">
+                    <p>Attendance management interface would be implemented here.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>DepEd Teacher's Dashboard © 2023 | Department of Education - Philippines</p>
+            <p>This tool is designed to help teachers manage their classes, students, and academic activities.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize Supabase client
+        const SUPABASE_URL = 'https://mksawfwvcvmhekwpmlaw.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1rc2F3Znd2Y3ZtaGVrd3BtbGF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzNDYwOTIsImV4cCI6MjA3MzkyMjA5Mn0.xkiwSXeOyhW5-EtiQNUvbLRefwECPudcDJy8ZcxvQqs';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // DOM Elements
+        const elements = {
+            notification: document.getElementById('notification'),
+            currentDate: document.getElementById('current-date'),
+            userGreet: document.getElementById('user-greet'),
+            logoutBtn: document.getElementById('logout-btn'),
+            navTabs: document.querySelectorAll('.nav-tab'),
+            tabContents: document.querySelectorAll('.tab-content'),
+            classesTableBody: document.getElementById('classes-table-body'),
+            studentsTableBody: document.getElementById('students-table-body'),
+            classFilter: document.getElementById('class-filter'),
+            studentClass: document.getElementById('student-class'),
+            classModal: document.getElementById('class-modal'),
+            studentModal: document.getElementById('student-modal'),
+            classForm: document.getElementById('class-form'),
+            studentForm: document.getElementById('student-form'),
+            classModalTitle: document.getElementById('class-modal-title'),
+            studentModalTitle: document.getElementById('student-modal-title'),
+            classId: document.getElementById('class-id'),
+            studentId: document.getElementById('student-id'),
+            className: document.getElementById('class-name'),
+            classSubject: document.getElementById('class-subject'),
+            classAcademicYear: document.getElementById('class-academic-year'),
+            studentFirstName: document.getElementById('student-first-name'),
+            studentLastName: document.getElementById('student-last-name'),
+            studentEmail: document.getElementById('student-email'),
+            addClassBtn: document.getElementById('add-class-btn'),
+            addStudentBtn: document.getElementById('add-student-btn'),
+            modalCloseButtons: document.querySelectorAll('.modal-close'),
+            totalClasses: document.getElementById('total-classes'),
+            totalStudents: document.getElementById('total-students'),
+            pendingAssignments: document.getElementById('pending-assignments')
+        };
+
+        // State
+        let currentUser = null;
+        let classes = [];
+        let students = [];
+        let editingClassId = null;
+        let editingStudentId = null;
+
+        // Initialize the application
+        async function init() {
+            await validateSession();
+            displayCurrentDate();
+            setupEventListeners();
+            loadClasses();
+            loadStudents();
+            updateStats();
+            showNotification('Welcome to your DepEd Dashboard!', 'success');
+        }
+
+        // Display current date
+        function displayCurrentDate() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            elements.currentDate.textContent = now.toLocaleDateString('en-PH', options);
+        }
+
+        // Set up event listeners
+        function setupEventListeners() {
+            // Navigation tabs
+            elements.navTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabId = tab.getAttribute('data-tab');
+                    switchTab(tabId);
+                });
+            });
+
+            // Modal close buttons
+            elements.modalCloseButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    closeModals();
+                });
+            });
+
+            // Add class button
+            elements.addClassBtn.addEventListener('click', () => {
+                openClassModal();
+            });
+
+            // Add student button
+            elements.addStudentBtn.addEventListener('click', () => {
+                openStudentModal();
+            });
+
+            // Class form submission
+            elements.classForm.addEventListener('submit', handleClassSubmit);
+
+            // Student form submission
+            elements.studentForm.addEventListener('submit', handleStudentSubmit);
+
+            // Class filter change
+            elements.classFilter.addEventListener('change', filterStudentsByClass);
+
+            // Logout button
+            document.getElementById('logoutBtn').addEventListener('click', logout);
+        }
+
+        // Switch between tabs
+        function switchTab(tabId) {
+            // Update active tab
+            elements.navTabs.forEach(tab => {
+                if (tab.getAttribute('data-tab') === tabId) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+
+            // Show active tab content
+            elements.tabContents.forEach(content => {
+                if (content.id === `${tabId}-tab`) {
+                    content.classList.add('active');
+                } else {
+                    content.classList.remove('active');
+                }
+            });
+
+            // Load data for the tab if needed
+            if (tabId === 'classes') {
+                loadClasses();
+            } else if (tabId === 'students') {
+                loadStudents();
+            }
+        }
+
+        // Load classes from Supabase
+        async function loadClasses() {
+            try {
+                const { data, error } = await supabase
+                    .from('classes')
+                    .select('*')
+                    .eq('teacher_id', currentUser.id)
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                classes = data || [];
+                renderClasses();
+                populateClassFilters();
+                updateStats();
+            } catch (error) {
+                console.error('Error loading classes:', error);
+                showNotification('Failed to load classes', 'error');
+            }
+        }
+
+        // Render classes in the table
+        function renderClasses() {
+            elements.classesTableBody.innerHTML = '';
+
+            if (classes.length === 0) {
+                elements.classesTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 20px;">
+                            No classes found. <a href="#" id="add-first-class" style="color: var(--primary);">Add your first class</a>
+                        </td>
+                    </tr>
+                `;
+                
+                document.getElementById('add-first-class').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    openClassModal();
+                });
+                return;
+            }
+
+            classes.forEach(cls => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${cls.name}</td>
+                    <td>${cls.subject}</td>
+                    <td>${cls.academic_year}</td>
+                    <td>${cls.student_count || 0}</td>
+                    <td>
+                        <button class="action-btn btn-view" data-id="${cls.id}">View</button>
+                        <button class="action-btn btn-edit" data-id="${cls.id}">Edit</button>
+                        <button class="action-btn btn-delete" data-id="${cls.id}">Delete</button>
+                    </td>
+                `;
+                elements.classesTableBody.appendChild(row);
+            });
+
+            // Add event listeners to action buttons
+            document.querySelectorAll('.btn-edit').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const classId = btn.getAttribute('data-id');
+                    openClassModal(classId);
+                });
+            });
+
+            document.querySelectorAll('.btn-delete').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const classId = btn.getAttribute('data-id');
+                    deleteClass(classId);
+                });
+            });
+        }
+
+        // Load students from Supabase
+        async function loadStudents() {
+            try {
+                const { data, error } = await supabase
+                    .from('students')
+                    .select(`
+                        *,
+                        classes (name)
+                    `)
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                students = data || [];
+                renderStudents();
+                updateStats();
+            } catch (error) {
+                console.error('Error loading students:', error);
+                showNotification('Failed to load students', 'error');
+            }
+        }
+
+        // Render students in the table
+        function renderStudents() {
+            elements.studentsTableBody.innerHTML = '';
+
+            if (students.length === 0) {
+                elements.studentsTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 20px;">
+                            No students found. <a href="#" id="add-first-student" style="color: var(--primary);">Add your first student</a>
+                        </td>
+                    </tr>
+                `;
+                
+                document.getElementById('add-first-student').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    openStudentModal();
+                });
+                return;
+            }
+
+            students.forEach(student => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${student.id.substring(0, 8)}</td>
+                    <td>${student.first_name}</td>
+                    <td>${student.last_name}</td>
+                    <td>${student.email || '-'}</td>
+                    <td>${student.classes?.name || 'Unassigned'}</td>
+                    <td>${new Date(student.enrollment_date).toLocaleDateString()}</td>
+                    <td>
+                        <button class="action-btn btn-view" data-id="${student.id}">View</button>
+                        <button class="action-btn btn-edit" data-id="${student.id}">Edit</button>
+                        <button class="action-btn btn-delete" data-id="${student.id}">Delete</button>
+                    </td>
+                `;
+                elements.studentsTableBody.appendChild(row);
+            });
+
+            // Add event listeners to action buttons
+            document.querySelectorAll('.btn-edit').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const studentId = btn.getAttribute('data-id');
+                    openStudentModal(studentId);
+                });
+            });
+
+            document.querySelectorAll('.btn-delete').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const studentId = btn.getAttribute('data-id');
+                    deleteStudent(studentId);
+                });
+            });
+        }
+
+        // Populate class filters dropdowns
+        function populateClassFilters() {
+            // Clear existing options
+            elements.classFilter.innerHTML = '<option value="">All Classes</option>';
+            elements.studentClass.innerHTML = '<option value="">Select Class</option>';
+
+            // Add classes to filters
+            classes.forEach(cls => {
+                elements.classFilter.innerHTML += `<option value="${cls.id}">${cls.name}</option>`;
+                elements.studentClass.innerHTML += `<option value="${cls.id}">${cls.name}</option>`;
+            });
+        }
+
+        // Filter students by class
+        function filterStudentsByClass() {
+            const classId = elements.classFilter.value;
+            
+            if (!classId) {
+                renderStudents();
+                return;
+            }
+            
+            const filteredStudents = students.filter(student => student.class_id === classId);
+            
+            elements.studentsTableBody.innerHTML = '';
+            filteredStudents.forEach(student => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${student.id.substring(0, 8)}</td>
+                    <td>${student.first_name}</td>
+                    <td>${student.last_name}</td>
+                    <td>${student.email || '-'}</td>
+                    <td>${student.classes?.name || 'Unassigned'}</td>
+                    <td>${new Date(student.enrollment_date).toLocaleDateString()}</td>
+                    <td>
+                        <button class="action-btn btn-view" data-id="${student.id}">View</button>
+                        <button class="action-btn btn-edit" data-id="${student.id}">Edit</button>
+                        <button class="action-btn btn-delete" data-id="${student.id}">Delete</button>
+                    </td>
+                `;
+                elements.studentsTableBody.appendChild(row);
+            });
+        }
+
+        // Open class modal for adding or editing
+        function openClassModal(classId = null) {
+            editingClassId = classId;
+            
+            if (classId) {
+                // Editing existing class
+                const cls = classes.find(c => c.id === classId);
+                if (cls) {
+                    elements.classModalTitle.textContent = 'Edit Class';
+                    elements.classId.value = cls.id;
+                    elements.className.value = cls.name;
+                    elements.classSubject.value = cls.subject;
+                    elements.classAcademicYear.value = cls.academic_year;
+                }
+            } else {
+                // Adding new class
+                elements.classModalTitle.textContent = 'Add New Class';
+                elements.classForm.reset();
+                elements.classId.value = '';
+            }
+            
+            elements.classModal.style.display = 'flex';
+        }
+
+        // Open student modal for adding or editing
+        function openStudentModal(studentId = null) {
+            editingStudentId = studentId;
+            
+            if (studentId) {
+                // Editing existing student
+                const student = students.find(s => s.id === studentId);
+                if (student) {
+                    elements.studentModalTitle.textContent = 'Edit Student';
+                    elements.studentId.value = student.id;
+                    elements.studentFirstName.value = student.first_name;
+                    elements.studentLastName.value = student.last_name;
+                    elements.studentEmail.value = student.email || '';
+                    elements.studentClass.value = student.class_id || '';
+                }
+            } else {
+                // Adding new student
+                elements.studentModalTitle.textContent = 'Add New Student';
+                elements.studentForm.reset();
+                elements.studentId.value = '';
+            }
+            
+            elements.studentModal.style.display = 'flex';
+        }
+
+        // Close all modals
+        function closeModals() {
+            elements.classModal.style.display = 'none';
+            elements.studentModal.style.display = 'none';
+        }
+
+        // Handle class form submission
+        async function handleClassSubmit(e) {
+            e.preventDefault();
+            
+            const classData = {
+                name: elements.className.value,
+                subject: elements.classSubject.value,
+                academic_year: elements.classAcademicYear.value,
+                teacher_id: currentUser.id
+            };
+            
+            try {
+                if (editingClassId) {
+                    // Update existing class
+                    const { error } = await supabase
+                        .from('classes')
+                        .update(classData)
+                        .eq('id', editingClassId);
+                    
+                    if (error) throw error;
+                    
+                    showNotification('Class updated successfully', 'success');
+                } else {
+                    // Create new class
+                    const { error } = await supabase
+                        .from('classes')
+                        .insert([classData]);
+                    
+                    if (error) throw error;
+                    
+                    showNotification('Class created successfully', 'success');
+                }
+                
+                closeModals();
+                loadClasses();
+            } catch (error) {
+                console.error('Error saving class:', error);
+                showNotification('Failed to save class', 'error');
+            }
+        }
+
+        // Handle student form submission
+        async function handleStudentSubmit(e) {
+            e.preventDefault();
+            
+            const studentData = {
+                first_name: elements.studentFirstName.value,
+                last_name: elements.studentLastName.value,
+                email: elements.studentEmail.value || null,
+                class_id: elements.studentClass.value
+            };
+            
+            try {
+                if (editingStudentId) {
+                    // Update existing student
+                    const { error } = await supabase
+                        .from('students')
+                        .update(studentData)
+                        .eq('id', editingStudentId);
+                    
+                    if (error) throw error;
+                    
+                    showNotification('Student updated successfully', 'success');
+                } else {
+                    // Create new student
+                    const { error } = await supabase
+                        .from('students')
+                        .insert([studentData]);
+                    
+                    if (error) throw error;
+                    
+                    showNotification('Student created successfully', 'success');
+                }
+                
+                closeModals();
+                loadStudents();
+            } catch (error) {
+                console.error('Error saving student:', error);
+                showNotification('Failed to save student', 'error');
+            }
+        }
+
+        // Delete a class
+        async function deleteClass(classId) {
+            if (!confirm('Are you sure you want to delete this class? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                // First check if the class has any students
+                const { data: students, error: studentsError } = await supabase
+                    .from('students')
+                    .select('id')
+                    .eq('class_id', classId);
+                
+                if (studentsError) throw studentsError;
+                
+                if (students && students.length > 0) {
+                    showNotification('Cannot delete class with students. Please reassign or delete the students first.', 'error');
+                    return;
+                }
+                
+                // Delete the class
+                const { error } = await supabase
+                    .from('classes')
+                    .delete()
+                    .eq('id', classId);
+                
+                if (error) throw error;
+                
+                showNotification('Class deleted successfully', 'success');
+                loadClasses();
+            } catch (error) {
+                console.error('Error deleting class:', error);
+                showNotification('Failed to delete class', 'error');
+            }
+        }
+
+        // Delete a student
+        async function deleteStudent(studentId) {
+            if (!confirm('Are you sure you want to delete this student? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const { error } = await supabase
+                    .from('students')
+                    .delete()
+                    .eq('id', studentId);
+                
+                if (error) throw error;
+                
+                showNotification('Student deleted successfully', 'success');
+                loadStudents();
+            } catch (error) {
+                console.error('Error deleting student:', error);
+                showNotification('Failed to delete student', 'error');
+            }
+        }
+
+        // Update statistics
+        function updateStats() {
+            elements.totalClasses.textContent = classes.length;
+            elements.totalStudents.textContent = students.length;
+            
+            // For demonstration - in a real app, you would calculate pending assignments
+            elements.pendingAssignments.textContent = Math.floor(Math.random() * 10);
+        }
+
+        // Show notification
+        function showNotification(message, type = 'success') {
+            elements.notification.textContent = message;
+            elements.notification.className = `notification ${type}`;
+            elements.notification.classList.add('show');
+            
+            setTimeout(() => {
+                elements.notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Validate session and get user info
+        async function validateSession() {
+            const { data: { session }, error } = await supabase.auth.getSession();
+            
+            if (error || !session) {
+                window.location.href = 'index.html';
+                return false;
+            }
+            
+            currentUser = session.user;
+            elements.userGreet.textContent = `Hi, ${currentUser.email}`;
+            
+            // Get user profile from our users table
+            const { data: userProfile, error: profileError } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', currentUser.id)
+                .single();
+            
+            if (!profileError && userProfile) {
+                const name = `${userProfile.first_name} ${userProfile.last_name}`;
+                elements.userGreet.textContent = `Hi, ${name}`;
+            }
+            
+            return true;
+        }
+
+        // Logout function
+        async function logout() {
+            await supabase.auth.signOut();
+            window.location.href = 'index.html';
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
